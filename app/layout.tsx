@@ -1,15 +1,14 @@
-import '@/app/ui/global.css'
-import { inter } from '@/app/ui/fonts';
+import "@/app/ui/global.css";
+import { inter } from "@/app/ui/fonts";
 
-
-export default function RootLayout({
-  children,
-}: {
+interface Props {
   children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body className={`${inter.className} antialiased`}>{children}</body>
-    </html>
-  );
 }
+
+const RootLayout: React.FC<Props> = ({ children }) => (
+  <html lang="en">
+    <body className={`${inter.className} antialiased`}>{children}</body>
+  </html>
+);
+
+export default RootLayout;
