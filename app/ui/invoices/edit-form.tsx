@@ -17,8 +17,9 @@ interface Props {
 }
 
 const EditInvoiceForm: React.FC<Props> = ({ invoice, customers }) => {
-  //@ts-ignore
   const updateInvoiceWithId = updateInvoice.bind(null, invoice.id);
+
+  console.log({ invoice });
 
   return (
     <form action={updateInvoiceWithId}>

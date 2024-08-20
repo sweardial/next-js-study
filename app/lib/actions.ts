@@ -4,6 +4,8 @@ import { z } from "zod";
 import { sql } from "@vercel/postgres";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { signIn } from "@/auth";
+import { AuthError } from "next-auth";
 
 const FormSchema = z.object({
   id: z.string(),
@@ -25,19 +27,25 @@ export const createInvoice = async (formData: FormData) => {
   const amountInCents = amount * 100;
   const date = new Date().toISOString();
 
-  await sql`
-    INSERT INTO invoices (customer_id, amount, status, date)
-    VALUES (${customerId}, ${amountInCents}, ${status}, ${date})`;
+  try {
+    await sql`
+      INSERT INTO invoices (customer_id, amount, status, date)
+      VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
+    `;
+  } catch (error) {
+    return {
+      message: "Database Error: Failed to Create Invoice.",
+    };
+  }
 
   revalidatePath("/dashboard/invoices");
   redirect("/dashboard/invoices");
 };
 
-const EditInvoice = FormSchema.omit({ date: true });
+const EditInvoice = FormSchema.omit({ date: true, id: true });
 
-export const updateInvoice = async (formData: FormData) => {
-  const { id, customerId, amount, status } = EditInvoice.parse({
-    id: formData.get("id"),
+export const updateInvoice = async (id: string, formData: FormData) => {
+  const { customerId, amount, status } = EditInvoice.parse({
     customerId: formData.get("customerId"),
     amount: formData.get("amount"),
     status: formData.get("status"),
@@ -45,19 +53,46 @@ export const updateInvoice = async (formData: FormData) => {
 
   const amountInCents = amount * 100;
 
-  await sql`
+  try {
+    await sql`
         UPDATE invoices
-        SET 
-            customer_id = ${customerId}, 
-            amount = ${amountInCents}, 
-            status = ${status}
-        WHERE id = ${id}`;
+        SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
+        WHERE id = ${id}
+      `;
+  } catch (error) {
+    return { message: "Database Error: Failed to Update Invoice." };
+  }
 
   revalidatePath("/dashboard/invoices");
+  revalidatePath(`/dashboard/invoices/${id}/edit`)
   redirect("/dashboard/invoices");
 };
 
 export const deleteInvoice = async (id: string) => {
-  await sql`DELETE FROM invoices WHERE id = ${id}`;
-  revalidatePath("/dashboard/invoices");
+  try {
+    await sql`DELETE FROM invoices WHERE id = ${id}`;
+    revalidatePath("/dashboard/invoices");
+    return { message: "Deleted Invoice." };
+  } catch (error) {
+    return { message: "Database Error: Failed to Delete Invoice." };
+  }
+};
+
+export const authenticate = async (
+  prevState: string | undefined,
+  formData: FormData
+) => {
+  try {
+    await signIn("credentials", formData);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return "Invalid credentials.";
+        default:
+          return "Something went wrong.";
+      }
+    }
+    throw error;
+  }
 };
